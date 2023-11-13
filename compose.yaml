@@ -1,1 +1,5 @@
 services:
+  app:
+    image: service-registry:latest
+    ports:
+      - "8080:8080"
