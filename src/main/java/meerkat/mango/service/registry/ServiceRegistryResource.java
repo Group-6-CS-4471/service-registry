@@ -30,6 +30,11 @@ public class ServiceRegistryResource {
         healthCheckExecutor.setService(service, ip, port);
     }
 
+    @GetMapping(value = "/remove/{service}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody void removeService(@PathVariable("service") final String service) {
+        healthCheckExecutor.removeService(service);
+    }
+
     @GetMapping(value = "/verify", produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody boolean verifyService(@RequestParam final String service) {
         return healthCheckExecutor.getHealth(service);
