@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Map;
+
 @RestController
 public class ServiceRegistryResource {
 
@@ -40,5 +42,10 @@ public class ServiceRegistryResource {
     @GetMapping(value = "/verify", produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody boolean verifyService(@RequestParam final String service) {
         return healthCheckExecutor.getHealth(service);
+    }
+
+    @GetMapping(value = "/registry/services", produces = MediaType.APPLICATION_JSON_VALUE)
+    public @ResponseBody Map<String, Boolean> getServiceUrls() {
+        return healthCheckExecutor.getServices();
     }
 }
