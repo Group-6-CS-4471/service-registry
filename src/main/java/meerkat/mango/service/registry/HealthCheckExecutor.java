@@ -3,7 +3,9 @@ package meerkat.mango.service.registry;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -14,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+@Component
 public class HealthCheckExecutor {
 
     private static final Logger LOG = LoggerFactory.getLogger(HealthCheckExecutor.class);
@@ -21,12 +24,13 @@ public class HealthCheckExecutor {
     private final ScheduledExecutorService executorService;
     private final ConcurrentHashMap<String, CopyOnWriteArrayList<ServiceUrl>> registeredServices;
 
-    @Value("${health.check.interval:60}")
-    private int healthCheckInterval;
+    private final int healthCheckInterval;
     private final ConcurrentHashMap<String, Boolean> healthChecks;
     private final RestTemplate restTemplate;
 
-    public HealthCheckExecutor() {
+    @Autowired
+    public HealthCheckExecutor(@Value("${health.check.interval}") final int healthCheckInterval) {
+        this.healthCheckInterval = healthCheckInterval;
         executorService = Executors.newScheduledThreadPool(1);
         registeredServices = new ConcurrentHashMap<>();
         healthChecks = new ConcurrentHashMap<>();

@@ -1,5 +1,6 @@
 package meerkat.mango.service.registry;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,8 +16,9 @@ public class ServiceRegistryResource {
 
     private final HealthCheckExecutor healthCheckExecutor;
 
-    public ServiceRegistryResource() {
-        healthCheckExecutor = new HealthCheckExecutor();
+    @Autowired
+    public ServiceRegistryResource(final HealthCheckExecutor healthCheckExecutor) {
+        this.healthCheckExecutor = healthCheckExecutor;
     }
 
     @PutMapping(value = "/register/{service}", produces = MediaType.APPLICATION_JSON_VALUE)
