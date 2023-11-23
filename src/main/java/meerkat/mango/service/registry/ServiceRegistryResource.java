@@ -25,13 +25,14 @@ public class ServiceRegistryResource {
 
     @PutMapping(value = "/register/{service}", produces = MediaType.APPLICATION_JSON_VALUE)
     public @ResponseBody void registerService(@PathVariable("service") final String service,
+                                              @RequestParam("provider") final String provider,
                                               @RequestParam("ip") final String ip,
                                               @RequestParam("port") final String port) {
         if (ip == null || port == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ip and port need to be specified");
         }
 
-        healthCheckExecutor.setService(service, ip, port);
+        healthCheckExecutor.setService(service, provider, ip, port);
     }
 
     @GetMapping(value = "/remove/{service}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -40,12 +41,12 @@ public class ServiceRegistryResource {
     }
 
     @GetMapping(value = "/verify", produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody boolean verifyService(@RequestParam final String service) {
+    public @ResponseBody Map<String, ServiceUrl> verifyService(@RequestParam final String service) {
         return healthCheckExecutor.getHealth(service);
     }
 
     @GetMapping(value = "/registry/services", produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody Map<String, Boolean> getServiceUrls() {
+    public @ResponseBody Map<String, Map<String, ServiceUrl>> getServiceUrls() {
         return healthCheckExecutor.getServices();
     }
 }

@@ -1,6 +1,7 @@
 package meerkat.mango.service.registry.backup;
 
 import meerkat.mango.service.registry.HealthCheckExecutor;
+import meerkat.mango.service.registry.ServiceUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,7 +49,7 @@ public class BackupRegistryExecutor {
             final var response = restTemplate.getForEntity("http:" + mainRegistryUri, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.hasBody()) {
-                final Map<String, Boolean> services = response.getBody();
+                final Map<String, Map<String, ServiceUrl>> services = response.getBody();
                 healthCheckExecutor.setServices(services);
                 services.forEach((k, v) -> LOG.info("retrieved service: {} with health {}", k, v));
             }
