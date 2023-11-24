@@ -66,6 +66,7 @@ public class HealthCheckExecutor {
 
     public void setServices(final Map<String, Map<String, ServiceUrl>> services) {
         registeredServices.putAll(services);
+        start();
     }
 
     private void start() {
