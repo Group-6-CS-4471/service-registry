@@ -30,10 +30,9 @@ public class HealthCheckExecutor {
 
     @Autowired
     public HealthCheckExecutor(@Value("${health.check.interval:60}") final int healthCheckInterval,
-                               @Value("${health.check.threads:1}") final int healthCheckThreads,
-                               @Value("${is.backup}") final boolean isBackup) {
+                               @Value("${health.check.threads:1}") final int healthCheckThreads) {
         this.healthCheckInterval = healthCheckInterval;
-        this.healthCheckRunning = new AtomicBoolean(isBackup);
+        this.healthCheckRunning = new AtomicBoolean(false);
         executorService = Executors.newScheduledThreadPool(healthCheckThreads);
         registeredServices = new ConcurrentHashMap<>();
         restTemplate = new RestTemplateBuilder()
