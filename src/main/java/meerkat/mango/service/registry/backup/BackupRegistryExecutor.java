@@ -1,14 +1,18 @@
 package meerkat.mango.service.registry.backup;
 
 import meerkat.mango.service.registry.HealthCheckExecutor;
+import meerkat.mango.service.registry.ServiceUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -30,7 +34,10 @@ public class BackupRegistryExecutor {
                                   @Value("${service.registry.port}") final String mainRegistryPort,
                                   @Value("${backup.update.interval}") final int backupUpdateInterval,
                                   final HealthCheckExecutor healthCheckExecutor) {
-        this.restTemplate = new RestTemplate();
+        this.restTemplate = new RestTemplateBuilder()
+                .setConnectTimeout(Duration.of(1, ChronoUnit.SECONDS))
+                .setReadTimeout(Duration.of(1, ChronoUnit.SECONDS))
+                .build();
         this.backupUpdateInterval = backupUpdateInterval;
         this.backupExecutor = Executors.newSingleThreadScheduledExecutor();
         this.healthCheckExecutor = healthCheckExecutor;
@@ -48,7 +55,7 @@ public class BackupRegistryExecutor {
             final var response = restTemplate.getForEntity("http:" + mainRegistryUri, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.hasBody()) {
-                final Map<String, Boolean> services = response.getBody();
+                final Map<String, Map<String, ServiceUrl>> services = response.getBody();
                 healthCheckExecutor.setServices(services);
                 services.forEach((k, v) -> LOG.info("retrieved service: {} with health {}", k, v));
             }

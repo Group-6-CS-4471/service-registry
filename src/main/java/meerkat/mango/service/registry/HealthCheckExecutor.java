@@ -11,10 +11,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -27,39 +25,36 @@ public class HealthCheckExecutor {
     private final int healthCheckInterval;
     private final AtomicBoolean healthCheckRunning;
     private final ScheduledExecutorService executorService;
-    private final Map<String, List<ServiceUrl>> registeredServices;
-    private final Map<String, Boolean> healthChecks;
+    private final Map<String, Map<String, ServiceUrl>> registeredServices;
     private final RestTemplate restTemplate;
 
     @Autowired
     public HealthCheckExecutor(@Value("${health.check.interval:60}") final int healthCheckInterval,
-                               @Value("${health.check.threads:1}") final int healthCheckThreads,
-                               @Value("${is.backup}") final boolean isBackup) {
+                               @Value("${health.check.threads:1}") final int healthCheckThreads) {
         this.healthCheckInterval = healthCheckInterval;
-        this.healthCheckRunning = new AtomicBoolean(isBackup);
+        this.healthCheckRunning = new AtomicBoolean(false);
         executorService = Executors.newScheduledThreadPool(healthCheckThreads);
         registeredServices = new ConcurrentHashMap<>();
-        healthChecks = new ConcurrentHashMap<>();
         restTemplate = new RestTemplateBuilder()
                 .setConnectTimeout(Duration.of(1, ChronoUnit.SECONDS))
                 .setReadTimeout(Duration.of(1, ChronoUnit.SECONDS))
                 .build();
     }
 
-    public boolean getHealth(final String service) {
+    public Map<String, ServiceUrl> getHealth(final String service) {
         start();
-        return healthChecks.containsKey(service) && healthChecks.get(service);
+        return registeredServices.get(service);
     }
 
-    Map<String, Boolean> getServices() {
-        return this.healthChecks;
+    Map<String, Map<String, ServiceUrl>> getServices() {
+        return this.registeredServices;
     }
 
-    void setService(final String service, final String ip, final String port) {
+    void setService(final String service, final String serviceProvider, final String ip, final String port) {
         if (!registeredServices.containsKey(service)) {
-            registeredServices.put(service, new CopyOnWriteArrayList<>());
+            registeredServices.put(service, new ConcurrentHashMap<>());
         }
-        registeredServices.get(service).add(new ServiceUrl(ip, port));
+        registeredServices.get(service).put(serviceProvider, new ServiceUrl(ip, port));
         start();
     }
 
@@ -68,8 +63,9 @@ public class HealthCheckExecutor {
         start();
     }
 
-    public void setServices(final Map<String, Boolean> services) {
-        healthChecks.putAll(services);
+    public void setServices(final Map<String, Map<String, ServiceUrl>> services) {
+        registeredServices.putAll(services);
+        start();
     }
 
     private void start() {
@@ -79,31 +75,27 @@ public class HealthCheckExecutor {
         healthCheckRunning.set(true);
         executorService.scheduleWithFixedDelay(() -> {
             LOG.info("Health check started");
-            registeredServices.keySet().forEach((key) -> {
-                healthChecks.put(key, verifyService(key));
-            });
+            registeredServices.keySet().forEach(this::verifyService);
         }, 0, healthCheckInterval, TimeUnit.SECONDS);
     }
 
-    private boolean verifyService(final String serviceName) {
+    private void verifyService(final String serviceName) {
         if (!registeredServices.containsKey(serviceName)) {
-            return false;
+            return;
         }
 
         final var serviceUrls = registeredServices.get(serviceName);
         final var uri = UriComponentsBuilder
                 .newInstance()
                 .path("/health");
-        for (final ServiceUrl url : serviceUrls) {
+        for (final var provider : serviceUrls.entrySet()) {
+            final var url = provider.getValue();
             final var response = restTemplate.getForEntity("http:" + uri.host(url.getIp()).port(url.getPort()).toUriString(), String.class);
             LOG.info("get request complete");
             LOG.info(response.getStatusCode().toString());
-            if (response.getStatusCode().is2xxSuccessful()) {
-                return true;
-            } else {
-                registeredServices.get(serviceName).remove(url);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                registeredServices.remove(provider.getKey());
             }
         }
-        return false;
     }
 }
