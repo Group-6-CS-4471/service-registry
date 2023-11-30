@@ -11,6 +11,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -41,20 +42,20 @@ public class HealthCheckExecutor {
                 .build();
     }
 
-    public Map<String, ServiceUrl> getHealth(final String service) {
+    public VerifyServiceResponse getHealth(final String service) {
         start();
-        return registeredServices.get(service);
+        return new VerifyServiceResponse(registeredServices.get(service));
     }
 
     Map<String, Map<String, ServiceUrl>> getServices() {
         return this.registeredServices;
     }
 
-    void setService(final String service, final String serviceProvider, final String ip, final String port) {
+    void setService(final String service, final String serviceProvider, final String ip, final String port, final String path) {
         if (!registeredServices.containsKey(service)) {
             registeredServices.put(service, new ConcurrentHashMap<>());
         }
-        registeredServices.get(service).put(serviceProvider, new ServiceUrl(ip, port));
+        registeredServices.get(service).put(serviceProvider, new ServiceUrl(ip, port, path));
         start();
     }
 
@@ -86,12 +87,15 @@ public class HealthCheckExecutor {
 
         final var serviceUrls = registeredServices.get(serviceName);
         final var uri = UriComponentsBuilder
-                .newInstance()
-                .path("/health");
+                .newInstance();
         for (final var provider : serviceUrls.entrySet()) {
-            final var url = provider.getValue();
-            final var response = restTemplate.getForEntity("http:" + uri.host(url.getIp()).port(url.getPort()).toUriString(), String.class);
-            LOG.info("get request complete");
+            final var serviceUrl = provider.getValue();
+            final var url = "http:" + uri.host(serviceUrl.getIp())
+                    .port(serviceUrl.getPort())
+                    .pathSegment(serviceUrl.getPath(), "health")
+                    .queryParam("provider", provider.getKey()).toUriString();
+            final var response = restTemplate.getForEntity(url, String.class);
+            LOG.info(url);
             LOG.info(response.getStatusCode().toString());
             if (!response.getStatusCode().is2xxSuccessful()) {
                 registeredServices.remove(provider.getKey());

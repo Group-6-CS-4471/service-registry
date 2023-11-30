@@ -11,4 +11,7 @@ public class ServiceUrl {
 
     @JsonProperty
     private final String port;
+
+    @JsonProperty
+    private final String path;
 }
