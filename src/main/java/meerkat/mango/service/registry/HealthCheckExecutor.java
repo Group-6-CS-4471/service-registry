@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -77,7 +79,7 @@ public class HealthCheckExecutor {
         executorService.scheduleWithFixedDelay(() -> {
             LOG.info("Health check started");
             registeredServices.keySet().forEach(this::verifyService);
-        }, 0, healthCheckInterval, TimeUnit.SECONDS);
+        }, 20, healthCheckInterval, TimeUnit.SECONDS);
     }
 
     private void verifyService(final String serviceName) {
@@ -86,20 +88,22 @@ public class HealthCheckExecutor {
         }
 
         final var serviceUrls = registeredServices.get(serviceName);
-        final var uri = UriComponentsBuilder
-                .newInstance();
         for (final var provider : serviceUrls.entrySet()) {
+            final var uri = UriComponentsBuilder.newInstance();
             final var serviceUrl = provider.getValue();
             final var url = "http:" + uri.host(serviceUrl.getIp())
                     .port(serviceUrl.getPort())
                     .pathSegment(serviceUrl.getPath(), "health")
                     .queryParam("provider", provider.getKey()).toUriString();
-            final var response = restTemplate.getForEntity(url, String.class);
-            LOG.info(url);
-            LOG.info(response.getStatusCode().toString());
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                registeredServices.remove(provider.getKey());
+            try {
+                final var response = restTemplate.getForEntity(url, String.class);
+                LOG.info(url);
+                LOG.info(response.getStatusCode().toString());
+            } catch (HttpClientErrorException | HttpServerErrorException e) {
+                LOG.warn("error with {}", url);
+                registeredServices.get(serviceName).remove(provider.getKey());
             }
+
         }
     }
 }
