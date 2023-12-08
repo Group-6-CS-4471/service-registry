@@ -90,10 +90,9 @@ public class HealthCheckExecutor {
         final var serviceUrls = registeredServices.get(serviceName);
         for (final var provider : serviceUrls.entrySet()) {
             final var uri = UriComponentsBuilder.newInstance();
-            final var serviceUrl = provider.getValue();
-            final var url = "http:" + uri.host(serviceUrl.getIp())
-                    .port(serviceUrl.getPort())
-                    .pathSegment(serviceUrl.getPath(), "health")
+            final var url = "http:" + uri.host("localhost")
+                    .port("50002")
+                    .pathSegment(serviceName, "health")
                     .queryParam("provider", provider.getKey()).toUriString();
             try {
                 final var response = restTemplate.getForEntity(url, String.class);

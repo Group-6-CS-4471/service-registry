@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -52,13 +54,18 @@ public class BackupRegistryExecutor {
     public void start() {
         backupExecutor.scheduleWithFixedDelay(() -> {
             LOG.info("Retrieving services");
-            final var response = restTemplate.getForEntity("http:" + mainRegistryUri, Map.class);
+            try {
+                final var response = restTemplate.getForEntity("http:" + mainRegistryUri, Map.class);
 
-            if (response.getStatusCode().is2xxSuccessful() && response.hasBody()) {
-                final Map<String, Map<String, ServiceUrl>> services = response.getBody();
-                healthCheckExecutor.setServices(services);
-                services.forEach((k, v) -> LOG.info("retrieved service: {} with health {}", k, v));
+                if (response.getStatusCode().is2xxSuccessful() && response.hasBody()) {
+                    final Map<String, Map<String, ServiceUrl>> services = response.getBody();
+                    healthCheckExecutor.setServices(services);
+                    services.forEach((k, v) -> LOG.info("retrieved service: {} with health {}", k, v));
+                }
+            } catch (Exception e) {
+                LOG.warn("error with contacting service registry. It is probably down");
             }
+
         }, 5, backupUpdateInterval, TimeUnit.SECONDS);
     }
 }
