@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -63,12 +64,10 @@ public class HealthCheckExecutor {
 
     void removeService(final String service) {
         registeredServices.remove(service);
-        start();
     }
 
     public void setServices(final Map<String, Map<String, ServiceUrl>> services) {
         registeredServices.putAll(services);
-        start();
     }
 
     private void start() {
@@ -88,19 +87,20 @@ public class HealthCheckExecutor {
         }
 
         final var serviceUrls = registeredServices.get(serviceName);
-        for (final var provider : serviceUrls.entrySet()) {
+        final String[] providers = { "Walmart", "eBay", "Amazon" };
+        for (final var provider : providers) {
             final var uri = UriComponentsBuilder.newInstance();
             final var url = "http:" + uri.host("localhost")
                     .port("50002")
                     .pathSegment(serviceName, "health")
-                    .queryParam("provider", provider.getKey()).toUriString();
+                    .queryParam("provider", provider).toUriString();
             try {
                 final var response = restTemplate.getForEntity(url, String.class);
                 LOG.info(url);
                 LOG.info(response.getStatusCode().toString());
-            } catch (HttpClientErrorException | HttpServerErrorException e) {
+            } catch (Exception e) {
                 LOG.warn("error with {}", url);
-                registeredServices.get(serviceName).remove(provider.getKey());
+                registeredServices.get(serviceName).remove(provider);
             }
 
         }
